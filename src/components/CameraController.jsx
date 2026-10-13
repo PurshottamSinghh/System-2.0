@@ -134,7 +134,7 @@ function CameraController({
           x: targetVec.x,
           y: targetVec.y,
           z: targetVec.z,
-          duration: 1.0,
+          duration: 0.5,
           ease: 'power2.inOut',
         });
 
@@ -143,7 +143,7 @@ function CameraController({
           x: endPos[0],
           y: endPos[1],
           z: endPos[2],
-          duration: 2.0,
+          duration: 1.0,
           ease: 'power2.inOut',
         });
 
@@ -153,7 +153,7 @@ function CameraController({
         // Animate BOTH position and lookAt target simultaneously
         // so the camera smoothly sweeps to the new planet with zero snap.
         // Scroll-wheel jumps use a snappier transit.
-        const duration = source === 'scroll' ? 1.4 : 2.5;
+        const duration = source === 'scroll' ? 0.9 : 1.3;
 
         tl.to(camera.position, {
           x: endPos[0],
@@ -190,7 +190,7 @@ function CameraController({
       });
 
       // Simultaneously fly up and pan lookAt back to origin
-      const duration = selectionSource === 'scroll' ? 1.4 : 2.0;
+      const duration = selectionSource === 'scroll' ? 0.9 : 1.1;
       tl.to(camera.position, {
         x: OVERVIEW_POS.x,
         y: OVERVIEW_POS.y,
