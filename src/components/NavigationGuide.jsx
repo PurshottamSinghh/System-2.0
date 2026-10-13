@@ -80,7 +80,20 @@ function NavigationGuide() {
                 </div>
                 <div className="guide-step__text">
                   <h3>Free-Cam Flight</h3>
-                  <p>Drag to manipulate <strong>rotation</strong>, scroll to control <strong>zoom</strong>. The environment is a fully unlocked 3D space.</p>
+                  <p>Drag to manipulate <strong>rotation</strong>, pinch or Ctrl + scroll to control <strong>zoom</strong>. The environment is a fully unlocked 3D space.</p>
+                </div>
+              </section>
+
+              <section className="guide-step">
+                <div className="guide-step__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24">
+                    <rect x="7" y="2" width="10" height="20" rx="5" />
+                    <line x1="12" y1="6" x2="12" y2="10" />
+                  </svg>
+                </div>
+                <div className="guide-step__text">
+                  <h3>Scroll Warp</h3>
+                  <p>Scroll <strong>down</strong> to jump outward from the Sun to the next planet, <strong>up</strong> to jump back. Hovering over a text panel scrolls the text instead.</p>
                 </div>
               </section>
 
