@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 // Pure, deterministic pseudo-random function to keep component render pure
@@ -7,79 +8,126 @@ function pseudoRandom(seed, offset = 0) {
   return x - Math.floor(x); // value in [0, 1)
 }
 
+// Approximate stellar colours from hot (blue) to cool (orange)
+const STAR_COLORS = ['#9bb0ff', '#aabfff', '#cad7ff', '#f8f7ff', '#fff4ea', '#ffe4c4', '#ffd2a1', '#ffbd6f'].map(
+  (c) => new THREE.Color(c)
+);
+
+const vertexShader = /* glsl */ `
+  uniform float uTime;
+  uniform float uPixelRatio;
+  attribute float aSize;
+  attribute float aPhase;
+  varying vec3 vColor;
+
+  void main() {
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    float twinkle = 0.8 + 0.2 * sin(uTime * (0.5 + aPhase * 1.5) + aPhase * 40.0);
+    vColor = color * twinkle;
+    gl_PointSize = aSize * uPixelRatio;
+  }
+`;
+
+const fragmentShader = /* glsl */ `
+  varying vec3 vColor;
+
+  void main() {
+    float d = length(gl_PointCoord - 0.5) * 2.0;
+    if (d > 1.0) discard;
+    float core = exp(-d * d * 10.0);
+    float halo = exp(-d * 3.5) * 0.35;
+    gl_FragColor = vec4(vColor, core + halo);
+  }
+`;
+
+/**
+ * Skybox-style starfield: always centred on the camera so stars sit at
+ * "infinity" and never get clipped or parallax while flying around.
+ */
 function CustomStars({ radius, count }) {
   const pointsRef = useRef();
 
-  // Create a circular texture for round stars
-  const starTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
-    const context = canvas.getContext('2d');
-
-    // Create a radial gradient for a soft circular star
-    const gradient = context.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.8)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 64, 64);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.needsUpdate = true;
-    return texture;
-  }, []);
-
-  const { positions, colors } = useMemo(() => {
+  const geometry = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    const phases = new Float32Array(count);
+
+    // A tilted great circle that a share of the stars cluster around (Milky Way band)
+    const bandNormal = new THREE.Vector3(0.35, 1, 0.2).normalize();
+    const v = new THREE.Vector3();
+    const bandCount = Math.floor(count * 0.45);
 
     for (let i = 0; i < count; i++) {
-      // Random position on sphere surface
-      const theta = pseudoRandom(i, 1) * Math.PI * 2; // Azimuth
-      const phi = Math.acos(2 * pseudoRandom(i, 2) - 1); // Elevation
-      const r = radius + (pseudoRandom(i, 3) - 0.5) * radius * 0.1; // Slight depth variation
+      const theta = pseudoRandom(i, 1) * Math.PI * 2;
+      const phi = Math.acos(2 * pseudoRandom(i, 2) - 1);
+      v.set(Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi));
 
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
+      if (i < bandCount) {
+        // Pull the star towards the band plane (gaussian-ish falloff)
+        const spread = (pseudoRandom(i, 4) + pseudoRandom(i, 5) + pseudoRandom(i, 6) - 1.5) * 0.18;
+        const h = v.dot(bandNormal);
+        v.addScaledVector(bandNormal, -h + spread).normalize();
+      }
 
-      // Highly varied brightness: very dim to very bright (0.05 to 1.0)
-      // Using power function to create extreme contrast - many very dim stars, some very bright ones
-      const randomValue = pseudoRandom(i, 8);
-      const brightness = 0.05 + Math.pow(randomValue, 0.3) * 0.95; // Lower power = more extreme variation
-      colors[i * 3] = brightness;
-      colors[i * 3 + 1] = brightness;
-      colors[i * 3 + 2] = brightness;
+      positions[i * 3] = v.x * radius;
+      positions[i * 3 + 1] = v.y * radius;
+      positions[i * 3 + 2] = v.z * radius;
+
+      // Many very dim stars, a few very bright ones
+      const r = pseudoRandom(i, 8);
+      const magnitude = Math.pow(r, 6);
+      const brightness = (i < bandCount ? 0.25 : 0.35) + magnitude * 1.4;
+      const color = STAR_COLORS[Math.floor(pseudoRandom(i, 9) * STAR_COLORS.length)];
+      colors[i * 3] = color.r * brightness;
+      colors[i * 3 + 1] = color.g * brightness;
+      colors[i * 3 + 2] = color.b * brightness;
+
+      sizes[i] = 1.5 + magnitude * 6.5 + pseudoRandom(i, 10) * 1.2;
+      phases[i] = pseudoRandom(i, 11);
     }
 
-    return { positions, colors };
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+    return geo;
   }, [count, radius]);
 
-  React.useLayoutEffect(() => {
-    if (pointsRef.current) {
-      const geometry = pointsRef.current.geometry;
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      geometry.attributes.position.needsUpdate = true;
-      geometry.attributes.color.needsUpdate = true;
-    }
-  }, [positions, colors]);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uPixelRatio: { value: Math.min(window.devicePixelRatio, 1.5) },
+        },
+        vertexShader,
+        fragmentShader,
+        vertexColors: true,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    []
+  );
+
+  useFrame(({ clock, camera }) => {
+    if (!pointsRef.current) return;
+    pointsRef.current.material.uniforms.uTime.value = clock.elapsedTime;
+    pointsRef.current.position.copy(camera.position);
+  });
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry />
-      <pointsMaterial
-        size={6}
-        map={starTexture}
-        vertexColors
-        sizeAttenuation={true}
-        depthWrite={false}
-        transparent
-        alphaTest={0.01}
-      />
-    </points>
+    <points
+      ref={pointsRef}
+      geometry={geometry}
+      material={material}
+      frustumCulled={false}
+      renderOrder={-1}
+      raycast={() => null}
+    />
   );
 }
 

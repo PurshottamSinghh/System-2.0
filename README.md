@@ -1,5 +1,7 @@
 # React + Vite
 
+Milky Way background: [ESO/S. Brunier](https://www.eso.org/public/images/eso0932a/), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

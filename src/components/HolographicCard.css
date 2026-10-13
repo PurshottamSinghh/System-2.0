@@ -4,7 +4,6 @@
    Chromatic edge aberration, noise grain, depth blur
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
 
 /* ── Card Container ───────────────────────────────────────── */
 .holo-card {
@@ -21,6 +20,11 @@
 .holo-card--visible {
   opacity: 1;
   transform: scale(1);
+}
+
+/* Capture the cursor over the card so wheel input reads as "reading", not planet-jumping */
+.holo-card--visible:not(.holo-card--exiting) .holo-card__body {
+  pointer-events: auto;
 }
 
 /* Exit animation — dissolves toward the right sidebar */
@@ -90,8 +94,8 @@
     rgba(255, 255, 255, 0.02) 40%,
     rgba(255, 255, 255, 0.04) 100%
   );
-  backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   overflow: hidden;

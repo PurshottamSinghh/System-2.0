@@ -42,8 +42,8 @@
     rgba(255, 255, 255, 0.03) 50%,
     rgba(255, 255, 255, 0.05) 100%
   );
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
   overflow-y: auto;

@@ -1,8 +1,48 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, Suspense } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import SaturnRings from './SaturnRings';
+import Atmosphere from './Atmosphere';
+
+const HOVER_EMISSIVE = new THREE.Color(0.6, 0.7, 1.0);
+
+function TexturedSphere({ radius, textureFile, meshRef, materialRef }) {
+  const gl = useThree((state) => state.gl);
+  const texture = useTexture(textureFile, (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = Math.min(8, gl.capabilities.getMaxAnisotropy());
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[radius, 64, 64]} />
+      <meshStandardMaterial
+        ref={materialRef}
+        map={texture}
+        roughness={0.9}
+        emissive={HOVER_EMISSIVE}
+        emissiveIntensity={0}
+      />
+    </mesh>
+  );
+}
+
+// Shown instantly while the texture streams in, so the scene never waits on downloads
+function PlaceholderSphere({ radius, color, meshRef, materialRef }) {
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[radius, 32, 32]} />
+      <meshStandardMaterial
+        ref={materialRef}
+        color={color}
+        roughness={0.9}
+        emissive={HOVER_EMISSIVE}
+        emissiveIntensity={0}
+      />
+    </mesh>
+  );
+}
 
 function Planet({
   distance = 10,
@@ -14,9 +54,12 @@ function Planet({
   onSelect,
   onPositionUpdate,
   hasRings = false,
+  color = '#888888',
+  atmosphere,
 }) {
   const meshRef = useRef();
   const planetMeshRef = useRef();
+  const bodyRef = useRef();
   const materialRef = useRef();
   const ringMaterialRef = useRef();
   const frozenPositionRef = useRef(null);
@@ -33,7 +76,6 @@ function Planet({
   // Initialize with a random start angle so planets aren't all aligned.
   const angleRef = useRef(Math.random() * Math.PI * 2);
 
-  const texture = useTexture(textureFile);
   const { camera } = useThree();
 
   useEffect(() => {
@@ -88,9 +130,9 @@ function Planet({
     const targetEmissive = hovered ? 0.35 : 0;
     emissiveRef.current = THREE.MathUtils.lerp(emissiveRef.current, targetEmissive, 6 * delta);
 
-    if (planetMeshRef.current) {
+    if (bodyRef.current) {
       const s = scaleRef.current;
-      planetMeshRef.current.scale.set(s, s, s);
+      bodyRef.current.scale.set(s, s, s);
     }
 
     if (materialRef.current) {
@@ -132,19 +174,21 @@ function Planet({
       }}
     >
       {/* The rotating planet mesh */}
-      <mesh ref={planetMeshRef}>
-        <sphereGeometry args={[size * 2, 32, 32]} />
-        <meshStandardMaterial
-          ref={materialRef}
-          map={texture}
-          emissive={new THREE.Color(0.6, 0.7, 1.0)}
-          emissiveIntensity={0}
-        />
-      </mesh>
+      <group ref={bodyRef}>
+        <Suspense
+          fallback={
+            <PlaceholderSphere radius={size * 2} color={color} meshRef={planetMeshRef} materialRef={materialRef} />
+          }
+        >
+          <TexturedSphere radius={size * 2} textureFile={textureFile} meshRef={planetMeshRef} materialRef={materialRef} />
+        </Suspense>
+
+        {atmosphere && <Atmosphere radius={size * 2} color={atmosphere.color} intensity={atmosphere.intensity} />}
+      </group>
 
       {/* Pulsing interaction ring — signals clickability */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[ringInner, ringOuter, 64]} />
+        <ringGeometry args={[ringInner, ringOuter, 96]} />
         <meshBasicMaterial
           ref={ringMaterialRef}
           color="#ffffff"

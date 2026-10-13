@@ -4,7 +4,6 @@
    Chromatic edges, depth blur, noise grain
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap');
 
 /* ── Panel Container ──────────────────────────────────────── */
 .right-sidebar {
@@ -21,11 +20,13 @@
     rgba(255, 255, 255, 0.02) 50%,
     rgba(255, 255, 255, 0.04) 100%
   );
-  backdrop-filter: blur(32px) saturate(150%);
-  -webkit-backdrop-filter: blur(32px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   transform: translateX(100%);
-  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Hidden once off-screen so the blur and sheen animation stop costing frames */
+  visibility: hidden;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.45s;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   box-shadow:
     -4px 0 40px rgba(0, 0, 0, 0.5),
@@ -37,6 +38,8 @@
 
 .right-sidebar--open {
   transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s;
 }
 
 /* Chromatic edge — left border (red → blue gradient) */

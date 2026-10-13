@@ -65,7 +65,7 @@ function CameraController({
   });
 
   // ── Compute final camera position for a target ────────
-  const computeEndPosition = (targetPos, size, fromOverview) => {
+  const computeEndPosition = (targetPos, size) => {
     const distFromOrigin = Math.sqrt(
       targetPos[0] ** 2 + targetPos[1] ** 2 + targetPos[2] ** 2
     );
@@ -77,40 +77,17 @@ function CameraController({
       return [d * 0.7, d * 0.5, d * 0.7];
     }
 
-    if (fromOverview) {
-      // Eclipse View — behind the planet relative to the Sun
-      const dir = {
-        x: targetPos[0] / distFromOrigin,
-        z: targetPos[2] / distFromOrigin,
-      };
-      const zoomDist = (size || 1) * 7.0;
-      return [
-        targetPos[0] + dir.x * zoomDist,
-        targetPos[1] + (size || 1) * 2,
-        targetPos[2] + dir.z * zoomDist,
-      ];
-    }
-
-    // Direct flight — approach from current camera direction
-    const cam = camera.position;
-    const toPlanet = {
-      x: targetPos[0] - cam.x,
-      y: targetPos[1] - cam.y,
-      z: targetPos[2] - cam.z,
-    };
-    const dist = Math.sqrt(toPlanet.x ** 2 + toPlanet.y ** 2 + toPlanet.z ** 2);
-    const dir = {
-      x: toPlanet.x / dist,
-      y: toPlanet.y / dist,
-      z: toPlanet.z / dist,
-    };
-    const stopDist = (size || 1) * 6.0;
-    const elevation = (size || 1) * 3.0;
-
+    // Three-quarter "sunlit" view: mostly along the orbit, slightly sunward,
+    // so the planet shows its lit hemisphere instead of the night side.
+    const out = { x: targetPos[0] / distFromOrigin, z: targetPos[2] / distFromOrigin };
+    const tangent = { x: -out.z, z: out.x };
+    const zoomDist = (size || 1) * 7.0;
+    const dirX = -out.x * 0.55 + tangent.x * 0.84;
+    const dirZ = -out.z * 0.55 + tangent.z * 0.84;
     return [
-      targetPos[0] - dir.x * stopDist,
-      targetPos[1] + elevation,
-      targetPos[2] - dir.z * stopDist,
+      targetPos[0] + dirX * zoomDist,
+      targetPos[1] + (size || 1) * 2,
+      targetPos[2] + dirZ * zoomDist,
     ];
   };
 
@@ -129,7 +106,7 @@ function CameraController({
       isControlling.current = true;
 
       const isFromOverview = prevPlanetRef.current === null;
-      const endPos = computeEndPosition(planetPosition, activePlanetSize, isFromOverview);
+      const endPos = computeEndPosition(planetPosition, activePlanetSize);
 
       const targetVec = new THREE.Vector3(...planetPosition);
 
@@ -175,12 +152,14 @@ function CameraController({
 
         // Animate BOTH position and lookAt target simultaneously
         // so the camera smoothly sweeps to the new planet with zero snap.
+        // Scroll-wheel jumps use a snappier transit.
+        const duration = source === 'scroll' ? 1.4 : 2.5;
 
         tl.to(camera.position, {
           x: endPos[0],
           y: endPos[1],
           z: endPos[2],
-          duration: 2.5,
+          duration,
           ease: 'power2.inOut',
         }, 0); // start at t=0
 
@@ -188,7 +167,7 @@ function CameraController({
           x: targetVec.x,
           y: targetVec.y,
           z: targetVec.z,
-          duration: 2.5,
+          duration,
           ease: 'power2.inOut',
         }, 0); // start at t=0 — simultaneous
       }
@@ -211,11 +190,12 @@ function CameraController({
       });
 
       // Simultaneously fly up and pan lookAt back to origin
+      const duration = selectionSource === 'scroll' ? 1.4 : 2.0;
       tl.to(camera.position, {
         x: OVERVIEW_POS.x,
         y: OVERVIEW_POS.y,
         z: OVERVIEW_POS.z,
-        duration: 2.0,
+        duration,
         ease: 'power2.inOut',
       }, 0);
 
@@ -223,7 +203,7 @@ function CameraController({
         x: OVERVIEW_TARGET.x,
         y: OVERVIEW_TARGET.y,
         z: OVERVIEW_TARGET.z,
-        duration: 2.0,
+        duration,
         ease: 'power2.inOut',
       }, 0);
 

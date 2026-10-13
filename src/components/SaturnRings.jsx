@@ -30,13 +30,11 @@ const SaturnRingMaterial = shaderMaterial(
   // ── Vertex Shader ──
   /* glsl */ `
     varying vec2 vUv;
-    varying float vRadius;
+    varying vec2 vRingPos;
 
     void main() {
       vUv = uv;
-      // Calculate normalized radial position from the ring geometry
-      vec4 worldPos = modelMatrix * vec4(position, 1.0);
-      vRadius = length(position.xy); // ring lies on XY before rotation
+      vRingPos = position.xy; // ring lies on XY before rotation
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
@@ -51,7 +49,7 @@ const SaturnRingMaterial = shaderMaterial(
     uniform vec3 uColor3;
 
     varying vec2 vUv;
-    varying float vRadius;
+    varying vec2 vRingPos;
 
     // Simple pseudo-random hash
     float hash(float n) {
@@ -67,6 +65,8 @@ const SaturnRingMaterial = shaderMaterial(
     }
 
     void main() {
+      // Radius is computed per-pixel so the ring needs only one radial segment
+      float vRadius = length(vRingPos);
       // Normalised radial position: 0 = inner edge, 1 = outer edge
       float t = (vRadius - uInnerRadius) / (uOuterRadius - uInnerRadius);
       t = clamp(t, 0.0, 1.0);
@@ -190,9 +190,8 @@ function SaturnRings({ planetSize = 1 }) {
     }
   });
 
-  // Ring geometry needs enough radial segments for smooth gradient
   const ringGeometry = useMemo(() => {
-    const geo = new THREE.RingGeometry(innerRadius, outerRadius, 128, 64);
+    const geo = new THREE.RingGeometry(innerRadius, outerRadius, 128, 1);
     return geo;
   }, [innerRadius, outerRadius]);
 
