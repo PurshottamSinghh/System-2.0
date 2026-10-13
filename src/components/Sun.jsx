@@ -28,8 +28,9 @@ const sunFragment = /* glsl */ `
   varying vec3 vViewDir;
   void main() {
     vec3 base = vec3(1.0, 0.55, 0.15);
+    // Horizontal-only drift with an integer scale so the wrapped map stays seamless
     vec3 a = mix(base, texture2D(uMap, vUv + vec2(uTime * 0.003, 0.0)).rgb, uHasMap);
-    vec3 b = mix(base, texture2D(uMap, vUv * 1.7 + vec2(-uTime * 0.005, uTime * 0.002)).rgb, uHasMap);
+    vec3 b = mix(base, texture2D(uMap, vUv * vec2(2.0, 1.0) + vec2(-uTime * 0.005, 0.0)).rgb, uHasMap);
     vec3 col = mix(a, a * b * 2.2, 0.4);
     float mu = max(dot(normalize(vNormal), normalize(vViewDir)), 0.0);
     float limb = 0.45 + 0.55 * pow(mu, 0.45);
@@ -61,6 +62,7 @@ function makeGlowTexture() {
 function SunSurfaceMap({ sunRef }) {
   const texture = useTexture(SunTexture, (t) => {
     t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
   });
   useLayoutEffect(() => {
     const { uniforms } = sunRef.current.material;
